@@ -397,6 +397,7 @@ class AnimesScraper:
         :param name: nome do arquivo a ser salvo
         :return:
         """
+        from utils import file_exists
         import os
 
         if name is None:
@@ -415,13 +416,17 @@ class AnimesScraper:
                 print('Url invalida')
 
         else:
-            r = requests.get(url, headers=Browser().headers, stream=True, verify=False)
+            r = requests.get(url, headers=Browser().headers, stream=True)
             length = r.headers.get('content-length')
             try:
                 length = int(length)
             except TypeError:
                 print('Falha no download')
                 return
+            if file_exists(name):
+                if int(os.stat(name).st_size) == length:
+                    print('Já existe')
+                    return
 
             with open(name, 'wb') as file:
                 for data in tqdm(iterable=r.iter_content(chunk_size=1024), total=(length / 1024) + 1, unit='KB'):

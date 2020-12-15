@@ -185,7 +185,7 @@ class GooglePhotos:
                 response = requests.post(
                     upload_url,
                     headers=headers,
-                    data=f.read()
+                    data=f,
                 )
 
             self.__debug('UPLOAD DE %s FEITO COM SUCESSO' % file_name)
