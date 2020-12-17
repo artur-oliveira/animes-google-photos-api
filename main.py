@@ -23,7 +23,7 @@ class Main:
         if file_exists(DATA_FILE_NAME):
             self.arr = read_json(DATA_FILE_NAME)
         else:
-            sc = AnimesScraper(self.debug, 131, 132)
+            sc = AnimesScraper(self.debug, 130, 131)
             sc.run()
             self.arr = [anime for anime in sc.path]
 
@@ -62,9 +62,7 @@ class Main:
                     episodes = anime.get('episodes')
 
                     if self.photos.create_album(name_album, anime.get('description')):
-                        self.photos.list_albuns()
                         write_json(self.photos.albums_list, ALBUMS_FILE_NAME)
-                        self.__debug('ATUALIZOU list_albuns()')
 
                     list_itens = self.photos.get_content_by_album(name_album)
                     episodes_albuns = len(list_itens) - 1 if list_itens is not None else 0
@@ -100,6 +98,7 @@ class Main:
                     else:
                         self.share_url[name_album] = self.photos.share_album(name_album).get('shareInfo'). \
                             get('shareableUrl')
+
                     self.block.append(name_album)
                     write_json(self.block, BLOCK_FILE_NAME)
                     write_json(self.episodes_missing, MISSING_FILE_NAME)

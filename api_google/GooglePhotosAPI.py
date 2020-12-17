@@ -87,10 +87,12 @@ class GooglePhotos:
             next_page_token = response.get('nextPageToken')
 
         self.__set_name_albuns()
+        self.__debug('list_albuns() executado')
 
     def list_albuns_from_array(self, array):
-        self.albums_list = array
+        self.albums_list.extend(array)
         self.__set_name_albuns()
+        self.__debug('list_albuns_from_array(array) executado')
 
     def __set_name_albuns(self):
         for item in self.albums_list:
@@ -166,9 +168,10 @@ class GooglePhotos:
                 body=request_enrichment
             ).execute()
 
+        self.list_albuns_from_array([response])
         sleep(3.2)
 
-    def upload(self, file_name, album_name, new_name=None):
+    def __upload(self, file_name, album_name, new_name=None):
         file = os.path.join(os.getcwd(), file_name)
 
         upload_url = 'https://photoslibrary.googleapis.com/v1/uploads'
@@ -196,14 +199,15 @@ class GooglePhotos:
                     'newMediaItems': [{
                         'simpleMediaItem': {
                             'uploadToken': response.content.decode('utf-8')
-                            }
                         }
+                    }
                     ]
                 }
-
                 self.service.mediaItems().batchCreate(body=request_body).execute()
+                self.__debug('método upload() executado com sucesso')
                 return True
             else:
+                self.__debug('método upload() falhou')
                 return False
         except FileNotFoundError:
             pass
@@ -220,7 +224,7 @@ class GooglePhotos:
         filename = 'cover-%s.%s' % (name, type_file)
 
         AnimesScraper.download(url, filename)
-        self.upload(filename, name_album)
+        self.__upload(filename, name_album)
 
         sleep(2)
 
@@ -234,8 +238,8 @@ class GooglePhotos:
         filename = url.split('/')[-1]
 
         AnimesScraper.download(url)
-        
-        sucess = self.upload(filename, name_album)
+
+        sucess = self.__upload(filename, name_album)
         sleep(2)
 
         try:
@@ -272,4 +276,4 @@ class GooglePhotos:
 
 if __name__ == '__main__':
     api = GooglePhotos()
-    api.list_albuns()
+    api.create_album("TESTE", "ESSE É UM ALBUM DE TESTE")
