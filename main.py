@@ -10,21 +10,22 @@ SHARE_URL_NAME = 'conf/share.json'
 
 
 class Main:
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, stream=True):
         self.arr = []
         self.block = []
         self.episodes_missing = {}
         self.share_url = {}
         self.debug = debug
         self.photos = GooglePhotos(debug)
+        self.stream = stream
 
     def __setup(self):
         # DADOS DOS ANIMES
         if file_exists(DATA_FILE_NAME):
             self.arr = read_json(DATA_FILE_NAME)
         else:
-            sc = AnimesScraper(self.debug, 130, 131)
-            sc.run()
+            sc = AnimesScraper(self.debug, 114, 114)
+            sc.run(self.stream)
             self.arr = [anime for anime in sc.path]
 
             write_json(self.arr, DATA_FILE_NAME)
@@ -44,6 +45,9 @@ class Main:
         # EPISODIOS FALTANDO
         if file_exists(MISSING_FILE_NAME):
             self.episodes_missing = read_json(MISSING_FILE_NAME)
+
+        if file_exists(SHARE_URL_NAME):
+            self.share_url = read_json(SHARE_URL_NAME)
 
         self.__debug('Configuração inicial realizada')
 
@@ -114,4 +118,8 @@ class Main:
 
 
 if __name__ == '__main__':
-    Main(True).run()
+    """
+    Se os downloads estiverem lentos, pode colocar stream=True, não é garantido que vá funcionar
+    pois isso está diretamente ligado ao servidor do Animes Vision
+    """
+    Main(debug=True, stream=False).run()

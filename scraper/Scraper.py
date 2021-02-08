@@ -1,10 +1,27 @@
 import re
 import requests
 from tqdm import tqdm
-from .Browser import Browser
-from mechanize.polyglot import HTTPError, URLError
 from .Exception import PathIsEmpty, NotHasStreamLinks
 from bs4 import BeautifulSoup
+from time import sleep
+from requests.exceptions import ConnectionError
+
+HTTP_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 '
+                  'Safari/537.36',
+    'Accept': '*/*',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Accept-Encoding': 'identity;q=1, *;q=0',
+    'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+    'Connection': 'keep-alive',
+    'Cache-Control': 'max-age=0',
+    'Sec - Fetch - Dest': 'video',
+    'Sec - Fetch - Mode': 'no - cors',
+    'Sec - Fetch - Site': 'same - site',
+    'Referer': 'https://animesvision.biz/'}
+
+_browser = requests.Session()
+_browser.headers.update(HTTP_HEADERS)
 
 
 class AnimesScraper:
@@ -12,6 +29,7 @@ class AnimesScraper:
     Classe para fazer a raspagem dos links de stream (download não implementado por causa de um bloqueio no servidor
     deles)
     """
+
     def __init__(self, debug=False, start=1, finish=1):
         """
         Construtor da classe, não é necessário passar nenhum argumento, mas poderá modificar o inicio e o final da pesqu
@@ -19,7 +37,6 @@ class AnimesScraper:
         OBS:
         modifique a variável _DEBUG abaixo para False caso deseje desativar as mensagens de log na tela
         """
-        self._browser = Browser().setup()
         self.path = []
         self._start = start
         self._finish = finish
@@ -27,7 +44,7 @@ class AnimesScraper:
         self._ANIMES_VISION = 'http://animesvision.biz'
         self._PATTERN_RECENTLY = '/ultimas-adicionadas?page='
 
-    def run(self):
+    def run(self, stream=True):
         """
         Função principal que percorre um conjunto de páginas (Caso tenha instanciado a classe sem passar nada, irá ser p
         esquisada apenas os animes contidos na página 'http://animesvision.biz/ultimas-adicionadas?page=1') e adicionar
@@ -35,7 +52,10 @@ class AnimesScraper:
         :return:
         """
         self.set_animes()
-        self.set_download_links()
+        if stream:
+            self.set_stream_links()
+        else:
+            self.set_download_links()
         self.__separate_quality()
 
     def run_all_site(self, start=1, finish=136):
@@ -77,6 +97,10 @@ class AnimesScraper:
 
         for item in self.path:
             download_links = item.get('download')
+
+            if download_links is None:
+                download_links = item.get('stream')
+
             if download_links:
                 if download_links.get('480p'):
                     new_path.append(self.__change_quality(item, '480p'))
@@ -94,8 +118,8 @@ class AnimesScraper:
         return {'title': item.get('title') + ' - %s' % quality,
                 'description': item.get('description'),
                 'img': item.get('img'),
-                'episodes': item.get('download').get(quality)}
-
+                'episodes': item.get('download').get(quality) if item.get('download') is not None else
+                item.get('stream').get(quality)}
 
     def __get_list_animes(self, pattern, string):
         """
@@ -118,8 +142,6 @@ class AnimesScraper:
         """
         Pesquisa a lista de animes de um determinado intervalo de páginas o Padrão é 1-1 (Pesquisa apenas na primeira pá
         gina)
-        :param start: Inicio da paginação
-        :param finish: Fim da paginação
         :return:
         """
         for i in range(self._start, self._finish + 1):
@@ -209,6 +231,7 @@ class AnimesScraper:
                 count += 1
 
             self.__debug('Episodio ', '%d analisado' % (count - 1))
+            sleep(0.3)
 
         document['download'] = dict_
 
@@ -239,6 +262,8 @@ class AnimesScraper:
                 if ep.get('1080p'):
                     dict_['1080p'][str(count)] = ep.get('1080p')
                 count += 1
+
+            self.__debug('Episodio ', '%d analisado' % (count - 1))
 
         document['stream'] = dict_
 
@@ -323,18 +348,14 @@ class AnimesScraper:
 
         return dict_
 
-    def __get_soup(self, url):
+    @staticmethod
+    def __get_soup(url):
         """
         Apenas retorna a BeautifulSoup de uma determinada url
         :param url: url a ser pesquisada
         :return: classe BeautifulSoup
         """
-        try:
-            self._browser.open(url)
-            response = self._browser.response()
-            return BeautifulSoup(response.read(), 'html.parser')
-        except HTTPError:
-            self.__debug('Erro na URL:', url)
+        return BeautifulSoup(_browser.get(url).content, 'lxml')
 
     def __debug(self, phrase, parameter):
         """
@@ -373,12 +394,10 @@ class AnimesScraper:
         :return: retorna True caso o código da requisição for 200, e False em qualquer outra possibilidade
         """
         try:
-            response = self._browser.open(url)
-            return response.code == 200
-        except HTTPError as e:
-            return False
-        except URLError as e:
-            return False
+            response = _browser.get(url)
+            return response.status_code == 200
+        except ConnectionError:
+            self.__debug("OCORREU UM ERRO", "")
 
     @staticmethod
     def __get_onclick(string):
@@ -405,7 +424,7 @@ class AnimesScraper:
 
         if not name.endswith('mp4'):
 
-            r = requests.get(url, headers=Browser().headers)
+            r = _browser.get(url)
 
             if r.status_code == 200:
                 with open(name, 'wb') as file:
@@ -416,7 +435,7 @@ class AnimesScraper:
                 print('Url invalida')
 
         else:
-            r = requests.get(url, headers=Browser().headers, stream=True)
+            r = _browser.get(url, stream=True)
             length = r.headers.get('content-length')
             try:
                 length = int(length)
