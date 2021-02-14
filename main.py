@@ -1,6 +1,7 @@
 from scraper.Scraper import AnimesScraper
 from api_google.GooglePhotosAPI import GooglePhotos
 from utils import *
+import os
 
 DATA_FILE_NAME = 'conf/data.json'
 ALBUMS_FILE_NAME = 'conf/conf.json'
@@ -24,7 +25,9 @@ class Main:
         if file_exists(DATA_FILE_NAME):
             self.arr = read_json(DATA_FILE_NAME)
         else:
-            sc = AnimesScraper(self.debug, 114, 114)
+            START = os.getenv('START_PAGE') or 110
+            FINISH = os.getenv('FINISH_PAGE') or 110
+            sc = AnimesScraper(self.debug, int(START), int(FINISH))
             sc.run(self.stream)
             self.arr = [anime for anime in sc.path]
 
